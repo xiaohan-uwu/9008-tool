@@ -7,24 +7,33 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04  # 保持使用稳定的 Ubuntu 22.04
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v3
 
-      # 1. 准备环境
-      - name: Setup Dependencies
+      # 1. 准备环境 (修复 Cython 版本冲突 + 安装系统依赖)
+      - name: Setup Environment
         run: |
           sudo apt-get update
+          # 安装系统库
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev gettext automake autopoint
+          
+          # 升级 pip
           pip3 install --upgrade pip
-          pip3 install --upgrade buildozer cython virtualenv
+          
+          # 关键修复：强制安装兼容 Kivy 的 Cython 版本！
+          # 如果不锁版本，默认安装的 Cython 3.x 会导致编译失败
+          pip3 install "Cython==0.29.36"
+          
+          # 安装打包工具
+          pip3 install --upgrade buildozer virtualenv
 
       # 2. 拉取 EDL 源码
       - name: Prepare EDL Source
         run: |
           if [ ! -d "edl" ]; then
-            echo "正在下载 EDL 源码..."
+            echo "📥 正在下载 EDL 源码..."
             git clone https://github.com/bkerler/edl.git temp_repo
             mv temp_repo/edl .
             rm -rf temp_repo
@@ -33,19 +42,24 @@ jobs:
             echo "✅ EDL 文件夹已存在，跳过下载。"
           fi
 
-      # 3. 自动修改配置 (注入协议同意)
+      # 3. 自动修改配置 (注入协议同意 + 日志优化)
       - name: Configure Buildozer
         run: |
+          # 强制同意 SDK 协议
           sed -i 's/android.accept_sdk_license = False/android.accept_sdk_license = True/g' buildozer.spec
           sed -i 's/# android.accept_sdk_license = True/android.accept_sdk_license = True/g' buildozer.spec
           if ! grep -q "android.accept_sdk_license = True" buildozer.spec; then
             echo "android.accept_sdk_license = True" >> buildozer.spec
           fi
+          
+          # 设置日志级别为 2 (详细模式)，方便排错
           sed -i 's/log_level = 1/log_level = 2/g' buildozer.spec || true
 
-      # 4. 开始编译 (关键修改：删除了 clean 命令，直接 debug)
+      # 4. 开始编译 (清理 -> 编译)
       - name: Build APK
         run: |
+          # 这是一个新环境，不需要 clean，直接跑
+          # 注意：这里去掉了 'yes |'，因为我们已经在上面配置了自动接受协议
           buildozer -v android debug
 
       # 5. 上传 APK
