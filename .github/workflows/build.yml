@@ -15,24 +15,22 @@ jobs:
       - name: Setup Environment
         run: |
           sudo apt-get update
-          # 🔥【关键修改】直接安装 Ubuntu 系统自带的中文字体包，不再去网上瞎下载了！
-          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev gettext automake autopoint fonts-droid-fallback
+          # 🔥【关键修复】新增 lld (连接器) 和 libltdl-dev，修复编译报错
+          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev gettext automake autopoint fonts-droid-fallback lld libltdl-dev
           
           pip3 install --upgrade pip
           pip3 install "Cython==0.29.36"
           pip3 install https://github.com/kivy/buildozer/archive/master.zip
           pip3 install https://github.com/kivy/python-for-android/archive/master.zip
           
-          # 🔥【关键修改】从系统目录把字体复制出来，改名为 font.ttf
-          # find 命令会自动找到系统安装的那个字体文件
+          # 🔥【稳定版】从系统提取字体 (只提取第一个找到的，防止报错)
           echo "正在提取系统字体..."
-          find /usr/share/fonts -name "DroidSansFallback*.ttf" -exec cp {} font.ttf \;
+          find /usr/share/fonts -name "DroidSansFallback*.ttf" | head -n 1 | xargs -I {} cp {} font.ttf
           
-          # 检查一下是否成功
           if [ -f "font.ttf" ]; then
             echo "✅ 字体提取成功！"
           else
-            echo "❌ 字体提取失败，但这几乎不可能发生。"
+            echo "❌ 字体提取失败"
             exit 1
           fi
 
@@ -52,14 +50,15 @@ jobs:
             echo "android.accept_sdk_license = True" >> buildozer.spec
           fi
           sed -i 's/# android.ndk = 23b/android.ndk = 25b/g' buildozer.spec || true
-          
-          # 确保字体被打包
           sed -i 's/source.include_exts = py,png,jpg,kv,atlas/source.include_exts = py,png,jpg,kv,atlas,ttf/g' buildozer.spec || true
 
       - name: Build APK
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
         run: |
+          # 清理一下之前的失败残留
+          buildozer android clean
+          # 开始编译
           buildozer -v android debug
 
       - name: Upload APK
