@@ -15,15 +15,26 @@ jobs:
       - name: Setup Environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev gettext automake autopoint
+          # 🔥【关键修改】直接安装 Ubuntu 系统自带的中文字体包，不再去网上瞎下载了！
+          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev gettext automake autopoint fonts-droid-fallback
+          
           pip3 install --upgrade pip
           pip3 install "Cython==0.29.36"
           pip3 install https://github.com/kivy/buildozer/archive/master.zip
           pip3 install https://github.com/kivy/python-for-android/archive/master.zip
           
-          # 🔥【修复点】更换了稳定的中文字体下载源 (DroidSansFallback)
-          echo "正在下载中文字体..."
-          wget -O font.ttf https://raw.githubusercontent.com/Halftea/DroidSansFallback/master/DroidSansFallback.ttf
+          # 🔥【关键修改】从系统目录把字体复制出来，改名为 font.ttf
+          # find 命令会自动找到系统安装的那个字体文件
+          echo "正在提取系统字体..."
+          find /usr/share/fonts -name "DroidSansFallback*.ttf" -exec cp {} font.ttf \;
+          
+          # 检查一下是否成功
+          if [ -f "font.ttf" ]; then
+            echo "✅ 字体提取成功！"
+          else
+            echo "❌ 字体提取失败，但这几乎不可能发生。"
+            exit 1
+          fi
 
       - name: Prepare EDL Source
         run: |
