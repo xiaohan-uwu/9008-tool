@@ -15,7 +15,8 @@ jobs:
       - name: Setup Environment
         run: |
           sudo apt-get update
-          # 🔥【关键修复】新增 lld (连接器) 和 libltdl-dev，修复编译报错
+          # 🔥【保留修复】安装 lld 和 libltdl-dev 以解决 lld not found 报错
+          # 🔥【保留修复】安装 fonts-droid-fallback 以解决字体 404 报错
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev gettext automake autopoint fonts-droid-fallback lld libltdl-dev
           
           pip3 install --upgrade pip
@@ -23,7 +24,7 @@ jobs:
           pip3 install https://github.com/kivy/buildozer/archive/master.zip
           pip3 install https://github.com/kivy/python-for-android/archive/master.zip
           
-          # 🔥【稳定版】从系统提取字体 (只提取第一个找到的，防止报错)
+          # 提取系统字体
           echo "正在提取系统字体..."
           find /usr/share/fonts -name "DroidSansFallback*.ttf" | head -n 1 | xargs -I {} cp {} font.ttf
           
@@ -56,9 +57,8 @@ jobs:
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
         run: |
-          # 清理一下之前的失败残留
-          buildozer android clean
-          # 开始编译
+          # ❌ 删除了报错的 clean 命令
+          # ✅ 直接开始编译
           buildozer -v android debug
 
       - name: Upload APK
