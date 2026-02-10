@@ -15,8 +15,8 @@ jobs:
       - name: Setup Environment
         run: |
           sudo apt-get update
-          # 🔥【保留修复】安装 lld 和 libltdl-dev 以解决 lld not found 报错
-          # 🔥【保留修复】安装 fonts-droid-fallback 以解决字体 404 报错
+          # 🔥【保留关键修复】安装 lld (连接器) 和 libltdl-dev，防止编译报错
+          # 🔥【保留关键修复】安装 fonts-droid-fallback，防止字体下载 404
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev gettext automake autopoint fonts-droid-fallback lld libltdl-dev
           
           pip3 install --upgrade pip
@@ -57,7 +57,7 @@ jobs:
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
         run: |
-          # ❌ 删除了报错的 clean 命令
+          # ❌ 已删除报错的 clean 命令
           # ✅ 直接开始编译
           buildozer -v android debug
 
