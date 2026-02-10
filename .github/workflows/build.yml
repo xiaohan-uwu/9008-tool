@@ -10,45 +10,47 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      # 1. 准备环境 (增加了 gettext, automake 等关键依赖)
-      - name: Setup Environment
+      # 1. 准备环境 (修复了 Ubuntu 24.04 的依赖问题，补充了 automake/autoconf)
+      - name: Setup Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev gettext automake
           pip3 install --upgrade buildozer cython virtualenv
 
-      # 2. 拉取 EDL 源码 (使用临时目录法防止冲突)
-      - name: Clone EDL Source
+      # 2. 拉取 EDL 源码 (防止文件冲突)
+      - name: Prepare EDL Source
         run: |
           if [ ! -d "edl" ]; then
             echo "正在下载 EDL 源码..."
             git clone https://github.com/bkerler/edl.git temp_repo
             mv temp_repo/edl .
             rm -rf temp_repo
-            echo "EDL 源码准备完毕！"
+            echo "✅ EDL 源码准备完毕！"
+          else
+            echo "✅ EDL 文件夹已存在，跳过下载。"
           fi
 
-      # 3. 自动修改配置 (这一步代替 yes 命令)
+      # 3. 自动修改 buildozer.spec (代替 yes 命令)
       - name: Configure Buildozer
         run: |
-          # 强制修改 buildozer.spec，设置自动接受 SDK 协议
-          # 如果文件里没有这行，就追加进去；如果有，就替换为 True
-          if grep -q "android.accept_sdk_license" buildozer.spec; then
-            sed -i 's/android.accept_sdk_license = False/android.accept_sdk_license = True/g' buildozer.spec
-            sed -i 's/# android.accept_sdk_license = True/android.accept_sdk_license = True/g' buildozer.spec
-          else
+          # 1. 强制同意 SDK 协议
+          sed -i 's/android.accept_sdk_license = False/android.accept_sdk_license = True/g' buildozer.spec
+          # 如果文件里原本是注释掉的，也把它解开
+          sed -i 's/# android.accept_sdk_license = True/android.accept_sdk_license = True/g' buildozer.spec
+          
+          # 2. 检查是否成功修改 (防止没改到)
+          if ! grep -q "android.accept_sdk_license = True" buildozer.spec; then
             echo "android.accept_sdk_license = True" >> buildozer.spec
           fi
           
-          # 强制设置日志级别为 2 (显示详细信息)
+          # 3. 设置日志级别为 2 (显示详细报错)
           sed -i 's/log_level = 1/log_level = 2/g' buildozer.spec || true
 
-      # 4. 开始编译 (使用 -v 参数查看详细报错)
+      # 4. 开始编译 (关键：加了 -v 参数，去掉了 yes)
       - name: Build APK
         run: |
-          # 注意：这里去掉了 'yes |'，因为我们在上一步已经配置了自动接受协议
           buildozer -v android debug
 
       # 5. 上传 APK
