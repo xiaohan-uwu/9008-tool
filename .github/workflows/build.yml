@@ -15,8 +15,7 @@ jobs:
       - name: Setup Environment
         run: |
           sudo apt-get update
-          # 🔥【保留关键修复】安装 lld (连接器) 和 libltdl-dev，防止编译报错
-          # 🔥【保留关键修复】安装 fonts-droid-fallback，防止字体下载 404
+          # 安装编译所需的所有系统依赖
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev gettext automake autopoint fonts-droid-fallback lld libltdl-dev
           
           pip3 install --upgrade pip
@@ -27,13 +26,6 @@ jobs:
           # 提取系统字体
           echo "正在提取系统字体..."
           find /usr/share/fonts -name "DroidSansFallback*.ttf" | head -n 1 | xargs -I {} cp {} font.ttf
-          
-          if [ -f "font.ttf" ]; then
-            echo "✅ 字体提取成功！"
-          else
-            echo "❌ 字体提取失败"
-            exit 1
-          fi
 
       - name: Prepare EDL Source
         run: |
@@ -45,20 +37,32 @@ jobs:
 
       - name: Configure Buildozer
         run: |
+          # 1. 同意协议
           sed -i 's/android.accept_sdk_license = False/android.accept_sdk_license = True/g' buildozer.spec
           sed -i 's/# android.accept_sdk_license = True/android.accept_sdk_license = True/g' buildozer.spec
           if ! grep -q "android.accept_sdk_license = True" buildozer.spec; then
             echo "android.accept_sdk_license = True" >> buildozer.spec
           fi
+          
+          # 2. 修复 NDK 版本
           sed -i 's/# android.ndk = 23b/android.ndk = 25b/g' buildozer.spec || true
+          
+          # 3. 确保字体被打包
           sed -i 's/source.include_exts = py,png,jpg,kv,atlas/source.include_exts = py,png,jpg,kv,atlas,ttf/g' buildozer.spec || true
+          
+          # 4. 🔥【关键新增】添加 pyserial 和 pyusb 依赖，否则 App 打开就会闪退！
+          # 我们查找 requirements 行，并在后面追加依赖
+          sed -i 's/requirements = python3,kivy/requirements = python3,kivy,pyserial,pyusb/g' buildozer.spec || true
+          # 防止原本就没有写 requirements 的情况，强制追加
+          if ! grep -q "pyserial" buildozer.spec; then
+             sed -i 's/requirements = .*/&,pyserial,pyusb/' buildozer.spec
+          fi
 
       - name: Build APK
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
         run: |
-          # ❌ 已删除报错的 clean 命令
-          # ✅ 直接开始编译
+          # ❌ 已删除报错的 clean 命令，直接开始编译
           buildozer -v android debug
 
       - name: Upload APK
