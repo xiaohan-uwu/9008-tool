@@ -11,14 +11,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-
-      # 1. 准备环境
+      # 1. 准备环境 (已修正适配 Ubuntu 24.04)
       - name: Setup Environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
           pip3 install --upgrade buildozer cython virtualenv
-
+          
       # 2. 如果你的 edl 源码没上传，这里自动拉取官方的 (保险起见加这步)
       - name: Clone EDL Source
         run: |
