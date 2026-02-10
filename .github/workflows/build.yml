@@ -21,9 +21,9 @@ jobs:
           pip3 install https://github.com/kivy/buildozer/archive/master.zip
           pip3 install https://github.com/kivy/python-for-android/archive/master.zip
           
-          # 🔥【关键新增】自动下载中文字体 (DroidSansFallback)
+          # 🔥【修复点】更换了稳定的中文字体下载源 (DroidSansFallback)
           echo "正在下载中文字体..."
-          wget -O font.ttf https://github.com/wordshub/free-font/raw/master/assets/font/DroidSansFallback.ttf
+          wget -O font.ttf https://raw.githubusercontent.com/Halftea/DroidSansFallback/master/DroidSansFallback.ttf
 
       - name: Prepare EDL Source
         run: |
@@ -42,8 +42,7 @@ jobs:
           fi
           sed -i 's/# android.ndk = 23b/android.ndk = 25b/g' buildozer.spec || true
           
-          # 🔥【关键新增】确保字体文件被打入 APK
-          # 我们把 source.include_exts 扩展一下，确保 ttf 被包含
+          # 确保字体被打包
           sed -i 's/source.include_exts = py,png,jpg,kv,atlas/source.include_exts = py,png,jpg,kv,atlas,ttf/g' buildozer.spec || true
 
       - name: Build APK
