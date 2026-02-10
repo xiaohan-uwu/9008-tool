@@ -7,19 +7,16 @@ on:
 
 jobs:
   build:
-    # 关键修改：强制使用 Ubuntu 22.04 (最稳定的编译环境)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-22.04  # 保持使用稳定的 Ubuntu 22.04
 
     steps:
       - uses: actions/checkout@v3
 
-      # 1. 准备环境 (Ubuntu 22.04 专用配方)
+      # 1. 准备环境
       - name: Setup Dependencies
         run: |
           sudo apt-get update
-          # 安装编译 APK 必须的所有依赖
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev gettext automake autopoint
-          # 升级 pip 和 buildozer
           pip3 install --upgrade pip
           pip3 install --upgrade buildozer cython virtualenv
 
@@ -39,24 +36,16 @@ jobs:
       # 3. 自动修改配置 (注入协议同意)
       - name: Configure Buildozer
         run: |
-          # 强制同意 SDK 协议
           sed -i 's/android.accept_sdk_license = False/android.accept_sdk_license = True/g' buildozer.spec
           sed -i 's/# android.accept_sdk_license = True/android.accept_sdk_license = True/g' buildozer.spec
-          
-          # 双重保险：如果文件里没这行，追加进去
           if ! grep -q "android.accept_sdk_license = True" buildozer.spec; then
             echo "android.accept_sdk_license = True" >> buildozer.spec
           fi
-          
-          # 开启详细日志，万一报错方便查
           sed -i 's/log_level = 1/log_level = 2/g' buildozer.spec || true
 
-      # 4. 开始编译
+      # 4. 开始编译 (关键修改：删除了 clean 命令，直接 debug)
       - name: Build APK
         run: |
-          # 清理旧的编译缓存 (防止上次失败的残留干扰)
-          buildozer android clean
-          # 开始编译
           buildozer -v android debug
 
       # 5. 上传 APK
