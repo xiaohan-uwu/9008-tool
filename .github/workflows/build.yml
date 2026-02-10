@@ -18,15 +18,21 @@ jobs:
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
           pip3 install --upgrade buildozer cython virtualenv
           
-      # 2. 如果你的 edl 源码没上传，这里自动拉取官方的 (保险起见加这步)
+      # 2. 拉取 EDL 源码 (修正版)
       - name: Clone EDL Source
         run: |
+          # 只有当 edl 文件夹不存在时才执行
           if [ ! -d "edl" ]; then
-            git clone https://github.com/bkerler/edl.git
-            # 移动 edl 文件夹到当前目录
-            mv edl/edl .
-            # 清理一下
-            rm -rf edl
+            echo "正在下载 EDL 源码..."
+            # 1. 下载到临时文件夹 'temp_repo'，避免名字冲突
+            git clone https://github.com/bkerler/edl.git temp_repo
+            
+            # 2. 把里面的核心 'edl' 文件夹移出来
+            mv temp_repo/edl .
+            
+            # 3. 删除临时文件夹
+            rm -rf temp_repo
+            echo "EDL 源码准备完毕！"
           fi
 
       # 3. 开始编译
