@@ -11,36 +11,47 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      # 1. 准备环境 (已修正适配 Ubuntu 24.04)
+
+      # 1. 准备环境 (增加了 gettext, automake 等关键依赖)
       - name: Setup Environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev
+          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev gettext automake
           pip3 install --upgrade buildozer cython virtualenv
-          
-      # 2. 拉取 EDL 源码 (修正版)
+
+      # 2. 拉取 EDL 源码 (使用临时目录法防止冲突)
       - name: Clone EDL Source
         run: |
-          # 只有当 edl 文件夹不存在时才执行
           if [ ! -d "edl" ]; then
             echo "正在下载 EDL 源码..."
-            # 1. 下载到临时文件夹 'temp_repo'，避免名字冲突
             git clone https://github.com/bkerler/edl.git temp_repo
-            
-            # 2. 把里面的核心 'edl' 文件夹移出来
             mv temp_repo/edl .
-            
-            # 3. 删除临时文件夹
             rm -rf temp_repo
             echo "EDL 源码准备完毕！"
           fi
 
-      # 3. 开始编译
+      # 3. 自动修改配置 (这一步代替 yes 命令)
+      - name: Configure Buildozer
+        run: |
+          # 强制修改 buildozer.spec，设置自动接受 SDK 协议
+          # 如果文件里没有这行，就追加进去；如果有，就替换为 True
+          if grep -q "android.accept_sdk_license" buildozer.spec; then
+            sed -i 's/android.accept_sdk_license = False/android.accept_sdk_license = True/g' buildozer.spec
+            sed -i 's/# android.accept_sdk_license = True/android.accept_sdk_license = True/g' buildozer.spec
+          else
+            echo "android.accept_sdk_license = True" >> buildozer.spec
+          fi
+          
+          # 强制设置日志级别为 2 (显示详细信息)
+          sed -i 's/log_level = 1/log_level = 2/g' buildozer.spec || true
+
+      # 4. 开始编译 (使用 -v 参数查看详细报错)
       - name: Build APK
         run: |
-          yes | buildozer android debug
+          # 注意：这里去掉了 'yes |'，因为我们在上一步已经配置了自动接受协议
+          buildozer -v android debug
 
-      # 4. 上传 APK
+      # 5. 上传 APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
