@@ -12,68 +12,48 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # 1. 准备环境 (关键修复：强制设置 Java 17)
       - name: Setup Environment
         run: |
-          # 安装系统依赖
           sudo apt-get update
           sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev gettext automake autopoint
-          
-          # 升级 pip
           pip3 install --upgrade pip
-          
-          # 安装依赖 (强制指定 Cython 版本以防兼容性问题)
           pip3 install "Cython==0.29.36"
-          
-          # 关键：安装最新开发版 Buildozer 和 P4A，以支持 Android 33+
           pip3 install https://github.com/kivy/buildozer/archive/master.zip
           pip3 install https://github.com/kivy/python-for-android/archive/master.zip
+          
+          # 🔥【关键新增】自动下载中文字体 (DroidSansFallback)
+          echo "正在下载中文字体..."
+          wget -O font.ttf https://github.com/wordshub/free-font/raw/master/assets/font/DroidSansFallback.ttf
 
-      # 2. 拉取 EDL 源码
       - name: Prepare EDL Source
         run: |
           if [ ! -d "edl" ]; then
-            echo "📥 正在下载 EDL 源码..."
             git clone https://github.com/bkerler/edl.git temp_repo
             mv temp_repo/edl .
             rm -rf temp_repo
-            echo "✅ EDL 源码准备完毕！"
-          else
-            echo "✅ EDL 文件夹已存在，跳过下载。"
           fi
 
-      # 3. 自动修改配置
       - name: Configure Buildozer
         run: |
-          # 强制同意 SDK 协议
           sed -i 's/android.accept_sdk_license = False/android.accept_sdk_license = True/g' buildozer.spec
           sed -i 's/# android.accept_sdk_license = True/android.accept_sdk_license = True/g' buildozer.spec
           if ! grep -q "android.accept_sdk_license = True" buildozer.spec; then
             echo "android.accept_sdk_license = True" >> buildozer.spec
           fi
-          
-          # 显式指定 NDK 版本 (防止自动下载的 NDK 版本过高导致不兼容)
-          # 注意：P4A 会根据这个去下载对应版本
           sed -i 's/# android.ndk = 23b/android.ndk = 25b/g' buildozer.spec || true
           
-          # 开启详细日志
-          sed -i 's/log_level = 1/log_level = 2/g' buildozer.spec || true
+          # 🔥【关键新增】确保字体文件被打入 APK
+          # 我们把 source.include_exts 扩展一下，确保 ttf 被包含
+          sed -i 's/source.include_exts = py,png,jpg,kv,atlas/source.include_exts = py,png,jpg,kv,atlas,ttf/g' buildozer.spec || true
 
-      # 4. 开始编译 (关键修复：注入 JAVA_HOME 环境变量)
       - name: Build APK
         env:
-          # 🔥 核心修复：强制使用 Java 17
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
         run: |
-          # 打印一下 Java 版本确认是否切换成功
-          java -version
-          
-          # 开始编译
           buildozer -v android debug
 
-      # 5. 上传 APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: 9008_Tool_APK
+          name: 9008_Termux_Pro
           path: bin/*.apk
