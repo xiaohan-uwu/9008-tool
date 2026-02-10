@@ -1,0 +1,43 @@
+name: Build 9008 APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      # 1. 准备环境
+      - name: Setup Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+          pip3 install --upgrade buildozer cython virtualenv
+
+      # 2. 如果你的 edl 源码没上传，这里自动拉取官方的 (保险起见加这步)
+      - name: Clone EDL Source
+        run: |
+          if [ ! -d "edl" ]; then
+            git clone https://github.com/bkerler/edl.git
+            # 移动 edl 文件夹到当前目录
+            mv edl/edl .
+            # 清理一下
+            rm -rf edl
+          fi
+
+      # 3. 开始编译
+      - name: Build APK
+        run: |
+          yes | buildozer android debug
+
+      # 4. 上传 APK
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: 9008_Tool_APK
+          path: bin/*.apk
